@@ -76,6 +76,8 @@ jobs:
       - name: Enter Chroot and Configure System
         run: |
           sudo chroot mount_root bash << EOF
+            set -ex # Exit immediately if a command exits with a non-zero status. Print commands.
+  
             # Mount necessary pseudo-filesystems
             mount -t proc /proc proc/
             mount -t sysfs /sys sys/
@@ -171,12 +173,16 @@ jobs:
             rm -rf /debootstrap
 
             # Unmount pseudo-filesystems before exiting chroot
-            umount /proc
-            umount /sys
-            umount /dev/pts
-            umount /dev
+            # Try lazy unmount for robustness
+            umount -l /proc || true
+            umount -l /sys || true
+            umount -l /dev/pts || true
+            umount -l /dev || true # Unmount /dev last as it can contain /dev/pts
 
-            exit
+            # Ensure all changes are written to disk
+            sync
+
+            exit # Explicitly exit the chroot shell
           EOF
 
       - name: Unmount Partitions and Loop Device
